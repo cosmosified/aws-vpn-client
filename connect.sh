@@ -73,6 +73,7 @@ function connect() {
   sudo "$OPENVPN_BIN" \
     --config "$OPENVPN_CONF" \
     --remote "$REMOTE_IP" 443 \
+    --script-security 2 \
     --up "$VPN_CLIENT_UP" \
     --down "$VPN_CLIENT_DOWN" \
     --route-up "/usr/bin/env rm /tmp/$CMD_NAME.saml" \

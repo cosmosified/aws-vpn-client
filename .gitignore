@@ -23,6 +23,3 @@ connect/authorized_keys
 # Local OpenVPN source/build artifacts
 /openvpn/
 /openvpn.zip
-
-# Kiro CLI tooling
-.kiro/

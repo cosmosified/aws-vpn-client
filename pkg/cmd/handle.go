@@ -23,6 +23,12 @@ const (
 	defaultOvpnConf    = "./ovpn.conf"
 	defaultOnChallenge = "listen"
 	defaultVerbose     = false
+	defaultMode        = modeTwoPhase
+	defaultMgmtPort    = "15672"
+
+	// Connection modes.
+	modeTwoPhase   = "two-phase"  // legacy: two openvpn processes, password via file
+	modeManagement = "management" // single openvpn process driven via management interface
 )
 
 // Cmd provides methods to connect to VPN using OpenVPN
@@ -45,6 +51,16 @@ func ParseConfigs() Cmd {
 		"auto (follow and parse challenge URL) or listen (spawn a SAML server and wait)",
 	)
 	flag.BoolVar(&configs.Verbose, "verbose", getBoolEnvOrDefault("AWS_VPN_VERBOSE", defaultVerbose), "print more logs")
+	flag.StringVar(&configs.Mode, "mode", getStringEnvOrDefault("AWS_VPN_MODE", defaultMode),
+		"connection mode: two-phase (legacy, default) or management (single openvpn process via management interface)")
+	flag.StringVar(&configs.MgmtPort, "mgmt-port", getStringEnvOrDefault("AWS_VPN_MGMT_PORT", defaultMgmtPort),
+		"management mode: TCP port on 127.0.0.1 for the OpenVPN management interface")
+	flag.StringVar(&configs.UpScript, "up", getStringEnvOrDefault("AWS_VPN_UP", ""),
+		"management mode: optional OpenVPN --up script")
+	flag.StringVar(&configs.DownScript, "down", getStringEnvOrDefault("AWS_VPN_DOWN", ""),
+		"management mode: optional OpenVPN --down script")
+	flag.StringVar(&configs.DNSUpDown, "dns-updown", getStringEnvOrDefault("AWS_VPN_DNS_UPDOWN", ""),
+		"management mode: optional OpenVPN --dns-updown script")
 	flag.Parse()
 
 	return configs
@@ -55,6 +71,14 @@ type cmdConfigs struct {
 	OnChallenge string
 	OvpnBin     string
 	OvpnConf    string
+
+	// Mode selects the connection strategy (two-phase or management).
+	Mode string
+	// Management-mode options.
+	MgmtPort   string
+	UpScript   string
+	DownScript string
+	DNSUpDown  string
 
 	// RemotePort is parsed from the config's "remote <host> <port>" line.
 	RemotePort string
@@ -67,6 +91,10 @@ type cmdConfigs struct {
 }
 
 func (c *cmdConfigs) ConnectVPN() error {
+	if c.Mode == modeManagement {
+		return c.connectViaManagement()
+	}
+
 	remoteIP := c.digRemoteIP()
 
 	// Produce a config without the endpoint's own remote/remote-random-hostname

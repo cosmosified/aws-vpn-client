@@ -19,3 +19,10 @@ connect/authorized_keys
 *.log
 .env
 .envrc
+
+# Local OpenVPN source/build artifacts
+/openvpn/
+/openvpn.zip
+
+# Kiro CLI tooling
+.kiro/

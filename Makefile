@@ -73,6 +73,9 @@ $(SRC_DIR)/.patched: $(ZIP) $(PATCH)
 	rm -rf $(SRC_DIR)
 	cd $(BUILD_DIR) && unzip -q "$(notdir $(ZIP))"
 	cd $(SRC_DIR) && patch -p1 < "$(CURDIR)/$(PATCH)"
+	# Stable symlink (./openvpn -> build/openvpn-<version>) so clangd's
+	# compile_flags.txt can reference a version-independent path.
+	ln -sfn $(SRC_DIR) openvpn
 	touch $@
 
 $(SRC_DIR)/.configured: $(SRC_DIR)/.patched

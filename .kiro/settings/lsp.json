@@ -191,11 +191,15 @@
       "project_patterns": [
         "CMakeLists.txt",
         "compile_commands.json",
-        "Makefile"
+        "compile_flags.txt",
+        "Makefile",
+        "configure.ac"
       ],
       "exclude_patterns": [
-        "**/build/**",
-        "**/cmake-build-**/**"
+        "**/cmake-build-**/**",
+        "**/.deps/**",
+        "**/.libs/**",
+        "**/autom4te.cache/**"
       ],
       "multi_workspace": false,
       "initialization_options": {},

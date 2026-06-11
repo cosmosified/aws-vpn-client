@@ -1,0 +1,10 @@
+-DHAVE_CONFIG_H
+-std=gnu11
+-Iopenvpn
+-Iopenvpn/include
+-Iopenvpn/src/compat
+-Iopenvpn/src/openvpn
+-I/opt/homebrew/include
+-I/opt/homebrew/opt/openssl@3/include
+-I/opt/homebrew/opt/lzo/include
+-I/opt/homebrew/opt/lz4/include

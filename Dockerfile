@@ -2,18 +2,18 @@
 FROM alpine:3.17 as ovpn-musl
 
 RUN apk add --no-cache \
-    autoconf=2.71-r1 \
-    automake=1.16.5-r1 \
-    curl=8.0.1-r0 \
-    go=1.19.9-r0 \
-    libtool=2.4.7-r1 \
-    linux-headers=5.19.5-r0 \
-    linux-pam-dev=1.5.2-r1 \
-    lzo-dev=2.10-r3 \
-    make=4.3-r1 \
-    openssl-dev=3.0.8-r4 \
-    patch=2.7.6-r9 \
-    unzip=6.0-r13
+    autoconf \
+    automake \
+    curl \
+    go \
+    libtool \
+    linux-headers \
+    linux-pam-dev \
+    lzo-dev \
+    make \
+    openssl-dev \
+    patch \
+    unzip
 
 # Patch & build OpenVPN
 ARG OPENVPN_VERSION=2.6.3
@@ -36,18 +36,19 @@ FROM debian:11-slim as ovpn-glibc
 
 RUN apt-get update \
     && apt-get --no-install-recommends -y install \
-      autoconf=2.69-14 \
-      automake=1:1.16.3-2 \
-      ca-certificates=20210119 \
-      curl=7.74.0-1.3+deb11u7 \
-      liblz4-dev=1.9.3-2 \
-      liblzo2-dev=2.10-2 \
-      libpam0g-dev=1.4.0-9+deb11u1 \
-      libssl-dev=1.1.1n-0+deb11u4 \
-      libtool=2.4.6-15 \
-      make=4.3-4.1 \
-      patch=2.7.6-7 \
-      unzip=6.0-26+deb11u1 \
+      autoconf \
+      automake \
+      ca-certificates \
+      curl \
+      liblz4-dev \
+      liblzo2-dev \
+      libpam0g-dev \
+      libssl-dev \
+      libtool \
+      make \
+      patch \
+      gcc \
+      unzip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

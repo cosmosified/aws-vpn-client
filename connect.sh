@@ -70,9 +70,18 @@ function connect() {
 
   REMOTE_IP=$(grep 'Remote IP:' "/tmp/$CMD_NAME.log" | cut -d' ' -f5)
 
+  # Derive the endpoint port from the config (AWS uses 443 or 1194) and strip
+  # the config's own remote/remote-random-hostname lines, so OpenVPN connects to
+  # the single pinned IP from phase 1. Both SAML phases must hit the same backend
+  # instance for the session ID to stay valid.
+  REMOTE_PORT=$(grep '^remote ' "$OPENVPN_CONF" | awk '{print $3}' | head -1)
+  REMOTE_PORT=${REMOTE_PORT:-443}
+  STRIPPED_CONF="$BASE_DIR/build/ovpn.stripped.conf"
+  grep -vE '^[[:space:]]*remote |^[[:space:]]*remote-random-hostname' "$OPENVPN_CONF" > "$STRIPPED_CONF"
+
   sudo "$OPENVPN_BIN" \
-    --config "$OPENVPN_CONF" \
-    --remote "$REMOTE_IP" 443 \
+    --config "$STRIPPED_CONF" \
+    --remote "$REMOTE_IP" "$REMOTE_PORT" \
     --script-security 2 \
     --up "$VPN_CLIENT_UP" \
     --down "$VPN_CLIENT_DOWN" \

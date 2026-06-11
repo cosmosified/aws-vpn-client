@@ -56,11 +56,26 @@ type cmdConfigs struct {
 	OvpnBin     string
 	OvpnConf    string
 
+	// RemotePort is parsed from the config's "remote <host> <port>" line.
+	RemotePort string
+	// strippedConf is a copy of OvpnConf with the endpoint's own
+	// remote/remote-random-hostname directives removed, so OpenVPN connects to
+	// the single pinned IP we pass via --remote.
+	strippedConf string
+
 	stdoutCh chan string
 }
 
 func (c *cmdConfigs) ConnectVPN() error {
 	remoteIP := c.digRemoteIP()
+
+	// Produce a config without the endpoint's own remote/remote-random-hostname
+	// lines so both auth phases connect to the same pinned IP (resolved above).
+	strippedConf, err := c.writeStrippedConf()
+	if err != nil {
+		return err
+	}
+	c.strippedConf = strippedConf
 
 	// Start SAML server
 	cleanupCh := make(chan bool)
@@ -148,12 +163,11 @@ func (c *cmdConfigs) execOpenVPN(remoteIP string, password string, forChallengeU
 		return []string{}, nil
 	}
 
-	port := 443
 	userPass := fmt.Sprintf(`<( printf "%%s\n%%s\n" "%s" "%s" )`, "N/A", password)
 
 	openVPN := fmt.Sprintf(
-		`%s --config %s --remote %s %d --auth-user-pass %s`,
-		c.OvpnBin, c.OvpnConf, remoteIP, port, userPass,
+		`%s --config %s --remote %s %s --auth-user-pass %s`,
+		c.OvpnBin, c.strippedConf, remoteIP, c.RemotePort, userPass,
 	)
 	cmd := exec.Command("bash", "-c", openVPN)
 
@@ -166,15 +180,53 @@ func (c *cmdConfigs) execOpenVPN(remoteIP string, password string, forChallengeU
 	return lines, cmd.Wait()
 }
 
+// writeStrippedConf writes a copy of the OpenVPN config with the endpoint's own
+// "remote <host> <port>" and "remote-random-hostname" directives removed. AWS
+// re-resolves remote-random-hostname to a new (load-balanced) backend on every
+// connection; dropping these lines forces OpenVPN to use the single pinned IP
+// passed via --remote, keeping both SAML auth phases on the same instance.
+func (c *cmdConfigs) writeStrippedConf() (string, error) {
+	data, err := os.ReadFile(c.OvpnConf)
+	if err != nil {
+		return "", err
+	}
+
+	var b strings.Builder
+	for _, line := range strings.Split(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "remote ") || trimmed == "remote-random-hostname" {
+			continue
+		}
+		b.WriteString(line)
+		b.WriteByte('\n')
+	}
+
+	out := c.OvpnConf + ".stripped"
+	if err := os.WriteFile(out, []byte(b.String()), 0600); err != nil {
+		return "", err
+	}
+	return out, nil
+}
+
 func (c *cmdConfigs) digRemoteIP() string {
-	// Parse remote server
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("grep 'remote ' %s | cut -d' ' -f2", c.OvpnConf))
+	// Parse the "remote <host> <port>" line from the config.
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("grep 'remote ' %s | head -1", c.OvpnConf))
 	stdout, err := cmd.Output()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	remoteServer := strings.Replace(string(stdout), "\n", "", -1)
+	fields := strings.Fields(string(stdout))
+	if len(fields) < 2 {
+		log.Fatal("no 'remote <host> <port>' line found in config: ", c.OvpnConf)
+	}
+	remoteServer := fields[1]
+	if len(fields) >= 3 {
+		c.RemotePort = fields[2]
+	}
+	if c.RemotePort == "" {
+		c.RemotePort = "443"
+	}
 
 	if c.Verbose {
 		log.Println("Remote server:", remoteServer)
